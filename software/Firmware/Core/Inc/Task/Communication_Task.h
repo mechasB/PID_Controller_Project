@@ -1,0 +1,1 @@
+void StartCommunicationTask(void *argument);

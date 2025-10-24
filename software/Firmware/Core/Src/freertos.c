@@ -67,8 +67,8 @@ const osThreadAttr_t Communication_T_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
-void StartTask02(void *argument);
+extern void StartPIDTask(void *argument);
+extern void StartCommunicationTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -100,10 +100,10 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of PID_Task */
-  PID_TaskHandle = osThreadNew(StartDefaultTask, NULL, &PID_Task_attributes);
+  PID_TaskHandle = osThreadNew(StartPIDTask, NULL, &PID_Task_attributes);
 
   /* creation of Communication_T */
-  Communication_THandle = osThreadNew(StartTask02, NULL, &Communication_T_attributes);
+  Communication_THandle = osThreadNew(StartCommunicationTask, NULL, &Communication_T_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -115,41 +115,6 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
-/**
-  * @brief  Function implementing the PID_Task thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
-{
-  /* USER CODE BEGIN StartDefaultTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartDefaultTask */
-}
-
-/* USER CODE BEGIN Header_StartTask02 */
-/**
-* @brief Function implementing the Communication_T thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
-{
-  /* USER CODE BEGIN StartTask02 */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartTask02 */
-}
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
