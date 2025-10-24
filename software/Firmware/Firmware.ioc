@@ -2,8 +2,9 @@
 CAD.formats=
 CAD.pinconfig=
 CAD.provider=
+FREERTOS.BinarySemaphores01=DataSemaphore,Dynamic,NULL,Available
 FREERTOS.FootprintOK=true
-FREERTOS.IPParameters=Tasks01,FootprintOK
+FREERTOS.IPParameters=Tasks01,FootprintOK,BinarySemaphores01
 FREERTOS.Tasks01=PID_Task,24,128,StartPIDTask,Default,NULL,Dynamic,NULL,NULL;Communication_T,24,128,StartCommunicationTask,Default,NULL,Dynamic,NULL,NULL
 File.Version=6
 KeepUserPlacement=false

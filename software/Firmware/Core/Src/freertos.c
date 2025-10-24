@@ -61,6 +61,11 @@ const osThreadAttr_t Communication_T_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for DataSemaphore */
+osSemaphoreId_t DataSemaphoreHandle;
+const osSemaphoreAttr_t DataSemaphore_attributes = {
+  .name = "DataSemaphore"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -85,6 +90,10 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of DataSemaphore */
+  DataSemaphoreHandle = osSemaphoreNew(1, 1, &DataSemaphore_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -114,7 +123,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_EVENTS */
 
 }
-
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
