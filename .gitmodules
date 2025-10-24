@@ -1,0 +1,3 @@
+[submodule "software/Firmware/Components/ArduinoJson"]
+	path = software/Firmware/Components/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git
