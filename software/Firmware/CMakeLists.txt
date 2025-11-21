@@ -52,8 +52,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Communication_Task.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/PID_Task.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Communication_Task.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/PID_Task.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Interface_Task.cpp"
 )
 
 # Add include paths

@@ -1,9 +1,4 @@
-#include "Task/PID_Task.h"
-#include "FreeRTOS.h"
-#include "cmsis_os2.h"
-#include "portable.h"
-#include "task.h"
-
+#include "Task/PID_Task.hpp"
 
 /* USER CODE BEGIN Header_StartPIDTask */
 /**

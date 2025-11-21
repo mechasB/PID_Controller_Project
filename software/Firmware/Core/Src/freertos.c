@@ -61,6 +61,13 @@ const osThreadAttr_t Communication_T_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for Interface_Task */
+osThreadId_t Interface_TaskHandle;
+const osThreadAttr_t Interface_Task_attributes = {
+  .name = "Interface_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Definitions for DataSemaphore */
 osSemaphoreId_t DataSemaphoreHandle;
 const osSemaphoreAttr_t DataSemaphore_attributes = {
@@ -74,6 +81,7 @@ const osSemaphoreAttr_t DataSemaphore_attributes = {
 
 extern void StartPIDTask(void *argument);
 extern void StartCommunicationTask(void *argument);
+extern void StartInterfaceTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -114,6 +122,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of Communication_T */
   Communication_THandle = osThreadNew(StartCommunicationTask, NULL, &Communication_T_attributes);
 
+  /* creation of Interface_Task */
+  Interface_TaskHandle = osThreadNew(StartInterfaceTask, NULL, &Interface_Task_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -123,6 +134,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_EVENTS */
 
 }
+
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
