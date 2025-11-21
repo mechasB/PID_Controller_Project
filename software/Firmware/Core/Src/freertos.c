@@ -79,9 +79,9 @@ const osSemaphoreAttr_t DataSemaphore_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
-extern void StartPIDTask(void *argument);
-extern void StartCommunicationTask(void *argument);
-extern void StartInterfaceTask(void *argument);
+void StartPIDTask(void *argument);
+void StartCommunicationTask(void *argument);
+void StartInterfaceTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -135,6 +135,59 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+/* USER CODE BEGIN Header_StartPIDTask */
+/**
+  * @brief  Function implementing the PID_Task thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartPIDTask */
+void StartPIDTask(void *argument)
+{
+  /* USER CODE BEGIN StartPIDTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartPIDTask */
+}
+
+/* USER CODE BEGIN Header_StartCommunicationTask */
+/**
+* @brief Function implementing the Communication_T thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCommunicationTask */
+void StartCommunicationTask(void *argument)
+{
+  /* USER CODE BEGIN StartCommunicationTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartCommunicationTask */
+}
+
+/* USER CODE BEGIN Header_StartInterfaceTask */
+/**
+* @brief Function implementing the Interface_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartInterfaceTask */
+void StartInterfaceTask(void *argument)
+{
+  /* USER CODE BEGIN StartInterfaceTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartInterfaceTask */
+}
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
