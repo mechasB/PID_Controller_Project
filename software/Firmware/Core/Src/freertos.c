@@ -18,14 +18,17 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-
+#include "FreeRTOS.h"
+#include "task.h"
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "data.hpp"
+#include "usart.h"  
 #include "tim.h"
-#include "cmsis_os2.h"
+#include <stdio.h>  
 //#include "i2c_lcd.h"
 //#include "i2c.h"
 /* USER CODE END Includes */
@@ -72,10 +75,10 @@ const osThreadAttr_t Interface_Task_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for DataSemaphore */
-osSemaphoreId_t DataSemaphoreHandle;
-const osSemaphoreAttr_t DataSemaphore_attributes = {
-  .name = "DataSemaphore"
+/* Definitions for DataM */
+osMutexId_t DataMHandle;
+const osMutexAttr_t DataM_attributes = {
+  .name = "DataM"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,17 +101,20 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of DataM */
+  DataMHandle = osMutexNew(&DataM_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
+  // g_data_mutex = xSemaphoreCreateMutex();
+
+  // if (g_data_mutex == NULL) {
+  //     Error_Handler(); 
+  // }
   /* USER CODE END RTOS_MUTEX */
 
-  /* Create the semaphores(s) */
-  /* creation of DataSemaphore */
-  DataSemaphoreHandle = osSemaphoreNew(1, 1, &DataSemaphore_attributes);
-
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
+  //g_DataSemaphore = xSemaphoreCreateBinary();
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -149,30 +155,65 @@ void MX_FREERTOS_Init(void) {
 void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
+{
+    // 1. Inicjalizacja sprzętu
   HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
-  __HAL_TIM_SET_COUNTER(&htim8, 0);
+
+  // 2. Zmienne lokalne (pamięć pozycji)
+  // 'static' sprawia, że zmienna nie kasuje się przy każdym obiegu pętli
+  static int16_t last_encoder_pos = 0; 
+  
+  // Próg czułości: 4 impulsy to zazwyczaj jeden fizyczny "ząbek" (klik) na enkoderze.
+  // Zwiększ to, jeśli dioda reaguje zbyt nerwowo.
+  const int16_t ROTATION_THRESHOLD = 4; 
+
   /* Infinite loop */
   for(;;)
   {
-    //ODCZYT ENKODERA
-    g_system_interface_config.encoder_rotate_value = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
 
-    // ODCZYT PRZYCISKU
-    // Jeśli stan niski (RESET) to true (wciśnięty)
-    if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
-        g_system_interface_config.btn_cs_state = true;
-    } else {
-        g_system_interface_config.btn_cs_state = false;
+        //int16_t current_pos = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
+        uint32_t current_pos = htim8.Instance->CNT;
+        // Zapis do struktury globalnej (dla innych tasków/wyświetlacza)
+        g_system_interface_config.encoder_rotate_value = current_pos;
+
+        // B. Logika diody LED (Prawo -> ON, Lewo -> OFF)
+        int16_t delta = current_pos - last_encoder_pos;
+
+        if (delta >= ROTATION_THRESHOLD) // Obrót w PRAWO
+        {
+            // Zapal diodę
+            HAL_GPIO_WritePin(READY_LED_GPIO_Port, READY_LED_Pin, GPIO_PIN_SET);
+            
+            // Zaktualizuj ostatnią znaną pozycję (punkt odniesienia)
+            last_encoder_pos = current_pos; 
+        }
+        else if (delta <= -ROTATION_THRESHOLD) // Obrót w LEWO
+        {
+            // Zgaś diodę
+            HAL_GPIO_WritePin(READY_LED_GPIO_Port, READY_LED_Pin, GPIO_PIN_RESET);
+            
+            // Zaktualizuj ostatnią znaną pozycję
+            last_encoder_pos = current_pos;
+        }
+
+        // C. Obsługa przycisku (bez zmian, tylko dodana do Mutexa)
+        if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
+            g_system_interface_config.btn_cs_state = true;
+        } else {
+            g_system_interface_config.btn_cs_state = false;
+        }
+
+        if (g_system_interface_config.btn_cs_state == 1)
+        {
+          HAL_GPIO_TogglePin(HEAT_LED_GPIO_Port, HEAT_LED_Pin);
+        }
+        
+
     }
 
-    // TEST INTERAKCJI (Reset licznika przy wciśnięciu)
-    if (g_system_interface_config.btn_cs_state == true)
-    {
-      HAL_GPIO_TogglePin(READY_LED_GPIO_Port, READY_LED_Pin);
-    }
-
+    // Krótkie opóźnienie (np. 10ms = 100Hz odświeżania)
     osDelay(10);
-  }
+}
   /* USER CODE END StartPIDTask */
 }
 
@@ -186,10 +227,38 @@ void StartPIDTask(void *argument)
 void StartCommunicationTask(void *argument)
 {
   /* USER CODE BEGIN StartCommunicationTask */
+  char tx_buffer[64];
+  int16_t encoder_val_to_send = 0;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+// 1. ODCZYT DANYCH (SEKCJA KRYTYCZNA)
+    // Chcemy odczytać g_system_interface_config, więc musimy wziąć ten sam klucz co PID_Task
+    if (osMutexAcquire(DataMHandle, 10) == osOK)
+    {
+        encoder_val_to_send = g_system_interface_config.encoder_rotate_value;
+        
+        // Oddajemy klucz natychmiast po skopiowaniu wartości!
+        // Nie trzymaj klucza podczas wysyłania UART, bo zablokujesz PID_Task na długo.
+        osMutexRelease(DataMHandle);
+    }
+
+    // 2. PRZYGOTOWANIE TEKSTU
+    // %d oznacza liczbę całkowitą (int)
+    // \r\n to znak nowej linii (żeby w terminalu dane były pod sobą)
+    int len = sprintf(tx_buffer, "Encoder: %d\r\n", encoder_val_to_send);
+
+    // 3. WYSYŁKA UART
+    // Używamy huart2 (standard dla USB w Nucleo).
+    // Jeśli Twoja płytka używa innego UARTu, zmień &huart2 na &huart1 lub &huart3.
+    if (len > 0) 
+    {
+        HAL_UART_Transmit(&huart2, (uint8_t*)tx_buffer, len, 100);
+    }
+
+    // 4. OPÓŹNIENIE
+    // 100ms = 10 razy na sekundę. To wystarczająco dla oka, a nie zapycha łącza.
+    osDelay(100);
   }
   /* USER CODE END StartCommunicationTask */
 }

@@ -25,13 +25,3 @@ SystemInterfaceConfig_t g_system_interface_config = {
     .led_heat_status = false,
     .led_ready_status = false
 };
-
-// Inicjalizacja mutexa
-//SemaphoreHandle_t g_data_mutex = NULL; 
-
-/**
- * @brief Inicjalizuje struktury danych i semafory.
- */
-void DATA_Init(void) {
-    g_DataSemaphore = xSemaphoreCreateMutex();
-}

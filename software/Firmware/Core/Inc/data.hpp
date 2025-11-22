@@ -4,7 +4,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-//#include "cmsis_os.h"
+#include "cmsis_os2.h"
+// #include "semphr.h"
+// #include "FreeRTOS.h"
 
 #define JSON_TX_BUFFER_SIZE 256
 
@@ -35,8 +37,5 @@ typedef struct{
 extern SystemData_t g_system_data;
 extern SystemConfig_t g_system_config;
 extern SystemInterfaceConfig_t g_system_interface_config;
-
-// extern xSemaphoreHandle_t g_DataSemaphore; 
-// extern xSemaphoreHandle_t g_data_mutex; 
 
 #endif // DATA_H
