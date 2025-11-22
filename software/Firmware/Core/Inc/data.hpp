@@ -4,16 +4,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "FreeRTOS.h"
-#include "cmsis_os2.h"
-#include "portable.h"
-#include "task.h"
-#include "semphr.h" 
-
+//#include "cmsis_os.h"
 
 #define JSON_TX_BUFFER_SIZE 256
-extern SemaphoreHandle_t g_DataSemaphore; 
-
 
 typedef struct {
     float measured_value;   // Aktualna wartość mierzona (element pomiarowy)
@@ -39,9 +32,11 @@ typedef struct{
     bool led_ready_status; 
 } SystemInterfaceConfig_t;
 
-// extern SystemData_t g_system_data;
-// extern SystemConfig_t g_system_config;
-// extern SystemInterfaceConfig_t g_system_interface_config;
-// extern SemaphoreHandle_t g_data_mutex; 
+extern SystemData_t g_system_data;
+extern SystemConfig_t g_system_config;
+extern SystemInterfaceConfig_t g_system_interface_config;
+
+// extern xSemaphoreHandle_t g_DataSemaphore; 
+// extern xSemaphoreHandle_t g_data_mutex; 
 
 #endif // DATA_H

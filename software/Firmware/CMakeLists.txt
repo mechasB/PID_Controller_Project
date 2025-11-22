@@ -64,6 +64,10 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Inc/Task"
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Embedded_Json"
     #"${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.h"
+
+    # --- DODAJ TE LINIJKI (Ścieżki do FreeRTOS) ---
+    "${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2"
+
 )
 
 # Add project symbols (macros)

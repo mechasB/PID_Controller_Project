@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "data.hpp"
 #include "tim.h"
+#include "cmsis_os2.h"
 //#include "i2c_lcd.h"
 //#include "i2c.h"
 /* USER CODE END Includes */
@@ -46,8 +47,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-int16_t encoder_rotate_value;
-bool encoder_btn_status;
+SystemData_t g_system_data;
+SystemConfig_t g_system_config;
+SystemInterfaceConfig_t g_system_interface_config;
 /* USER CODE END Variables */
 /* Definitions for PID_Task */
 osThreadId_t PID_TaskHandle;
@@ -153,18 +155,18 @@ void StartPIDTask(void *argument)
   for(;;)
   {
     //ODCZYT ENKODERA
-    encoder_rotate_value = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
+    g_system_interface_config.encoder_rotate_value = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
 
     // ODCZYT PRZYCISKU
     // Jeśli stan niski (RESET) to true (wciśnięty)
     if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
-        encoder_btn_status = true;
+        g_system_interface_config.btn_cs_state = true;
     } else {
-        encoder_btn_status = false;
+        g_system_interface_config.btn_cs_state = false;
     }
 
     // TEST INTERAKCJI (Reset licznika przy wciśnięciu)
-    if (encoder_btn_status == true)
+    if (g_system_interface_config.btn_cs_state == true)
     {
       HAL_GPIO_TogglePin(READY_LED_GPIO_Port, READY_LED_Pin);
     }
