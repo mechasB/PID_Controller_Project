@@ -3,6 +3,7 @@
 #define _DATA_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "portable.h"
@@ -29,9 +30,18 @@ typedef struct {
     uint16_t sample_period; // Okres próbkowania
 } SystemConfig_t;
 
+typedef struct{
+    uint16_t encoder_rotate_value;
+    bool encoder_btn_status;
+    bool btn_cs_state;
+    bool led_cooling_status;
+    bool led_heat_status;
+    bool led_ready_status; 
+} SystemInterfaceConfig_t;
 
-//extern SystemData_t g_system_data;
-//extern SystemConfig_t g_system_config;
-//extern SemaphoreHandle_t g_data_mutex; 
+// extern SystemData_t g_system_data;
+// extern SystemConfig_t g_system_config;
+// extern SystemInterfaceConfig_t g_system_interface_config;
+// extern SemaphoreHandle_t g_data_mutex; 
 
 #endif // DATA_H

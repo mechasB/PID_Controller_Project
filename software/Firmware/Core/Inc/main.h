@@ -77,6 +77,8 @@ void Error_Handler(void);
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define ENCODER_BTN_Pin GPIO_PIN_4
+#define ENCODER_BTN_GPIO_Port GPIOB
 #define COOLING_LED_Pin GPIO_PIN_5
 #define COOLING_LED_GPIO_Port GPIOB
 #define BTN_CS_Pin GPIO_PIN_6

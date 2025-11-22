@@ -1,5 +1,4 @@
-#include "data.h"
-#include "semphr.h"
+#include "data.hpp"
 
 // Inicjalizacja zmiennych globalnych
 SystemData_t g_system_data = {
@@ -16,6 +15,15 @@ SystemConfig_t g_system_config = {
     .ki = 0.1f,
     .kd = 0.01f,
     .sample_period = 10 // Przykładowy okres próbkowania w ms
+};
+
+SystemInterfaceConfig_t g_system_interface_config = {
+    .encoder_rotate_value = 0,
+    .encoder_btn_status = false,
+    .btn_cs_state = false,
+    .led_cooling_status = false,
+    .led_heat_status = false,
+    .led_ready_status = false
 };
 
 // Inicjalizacja mutexa

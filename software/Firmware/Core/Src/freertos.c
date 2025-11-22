@@ -18,14 +18,15 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "FreeRTOS.h"
-#include "task.h"
+
 #include "main.h"
-#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "data.hpp"
+#include "tim.h"
+//#include "i2c_lcd.h"
+//#include "i2c.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +46,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+int16_t encoder_rotate_value;
+bool encoder_btn_status;
 /* USER CODE END Variables */
 /* Definitions for PID_Task */
 osThreadId_t PID_TaskHandle;
@@ -145,10 +147,29 @@ void MX_FREERTOS_Init(void) {
 void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
+  HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
+  __HAL_TIM_SET_COUNTER(&htim8, 0);
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    //ODCZYT ENKODERA
+    encoder_rotate_value = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
+
+    // ODCZYT PRZYCISKU
+    // Jeśli stan niski (RESET) to true (wciśnięty)
+    if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
+        encoder_btn_status = true;
+    } else {
+        encoder_btn_status = false;
+    }
+
+    // TEST INTERAKCJI (Reset licznika przy wciśnięciu)
+    if (encoder_btn_status == true)
+    {
+      HAL_GPIO_TogglePin(READY_LED_GPIO_Port, READY_LED_Pin);
+    }
+
+    osDelay(10);
   }
   /* USER CODE END StartPIDTask */
 }

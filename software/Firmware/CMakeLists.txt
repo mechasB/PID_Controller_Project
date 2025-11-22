@@ -55,13 +55,15 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Communication_Task.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/PID_Task.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Interface_Task.cpp"
+    #"${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.c"
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     "${CMAKE_CURRENT_SOURCE_DIR}/Inc/Task"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Components/ArduinoJson/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/Embedded_Json"
+    #"${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.h"
 )
 
 # Add project symbols (macros)
