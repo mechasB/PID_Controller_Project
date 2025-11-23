@@ -29,8 +29,10 @@
 #include "usart.h"  
 #include "tim.h"
 #include <stdio.h>
-
+//Include Task 
 #include "Task/Interface_Task.h"
+#include "Task/Communication_Task.h"
+#include "Task/PID_Task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -175,11 +177,12 @@ void StartPIDTask(void *argument)
 void StartCommunicationTask(void *argument)
 {
   /* USER CODE BEGIN StartCommunicationTask */
+  Communication_Init();
   /* Infinite loop */
   for(;;)
   {
-
-    osDelay(10);
+    Communication_Update();
+    osDelay(100);
   }
   /* USER CODE END StartCommunicationTask */
 }

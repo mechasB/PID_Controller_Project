@@ -1,19 +1,17 @@
+#ifndef COMMUNICATION_TASK_H
+#define COMMUNICATION_TASK_H
 
-#ifndef _COMMUNICATION_TASK_H_
-#define _COMMUNICATION_TASK_H_
+/* Include plików systemowych */
+#include "main.h"     // Definicje HAL
+#include "data.hpp"   // Twoje struktury (lub data.h jeśli też zmieniłeś)
+#include "usart.h"    // Dostęp do huart3
+#include "cmsis_os2.h" // Dostęp do typów RTOS (osMutexId_t)
+#include <stdio.h>    // Do snprintf
 
+/* Funkcja inicjalizująca (jeśli potrzebna w przyszłości) */
+void Communication_Init(void);
 
-//FreeRtos Includes
-#include "FreeRTOS.h"
-#include "cmsis_os2.h"
-#include "portable.h"
-#include "task.h"
-#include "semphr.h"
-//Other Includes
-#include "data.hpp"
-#include "usart.h"
-#include "main.h"
+/* Główna logika wysyłania - wywoływana w pętli taska */
+void Communication_Update(void);
 
-
-
-#endif
+#endif /* COMMUNICATION_TASK_H */
