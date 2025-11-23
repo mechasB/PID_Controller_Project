@@ -29,7 +29,8 @@
 #include "usart.h"  
 #include "tim.h"
 #include <stdio.h>
-#include "encoder_config.h"
+
+#include "Task/Interface_Task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -193,11 +194,11 @@ void StartCommunicationTask(void *argument)
 void StartInterfaceTask(void *argument)
 {
   /* USER CODE BEGIN StartInterfaceTask */
-  ENC_Init(&henc1);
+  Interface_Init();
   /* Infinite loop */
   for(;;)
   {
-    
+    Interface_Update();
     osDelay(10);
   }
   /* USER CODE END StartInterfaceTask */

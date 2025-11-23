@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.22)
 #
 
 # Setup compiler settings
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
@@ -53,9 +53,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     #---TASKS---
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Communication_Task.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/PID_Task.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Interface_Task.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Communication_Task.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/PID_Task.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/Task/Interface_Task.c"
 
     #---COMPONENETS---
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder/encoder_config.c"
@@ -66,6 +66,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    "${CMAKE_CURRENT_SOURCE_DIR}/Inc"
     "${CMAKE_CURRENT_SOURCE_DIR}/Inc/Task"
     "${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2"
 
