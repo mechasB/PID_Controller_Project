@@ -28,9 +28,8 @@
 #include "data.hpp"
 #include "usart.h"  
 #include "tim.h"
-#include <stdio.h>  
-//#include "i2c_lcd.h"
-//#include "i2c.h"
+#include <stdio.h>
+#include "encoder_config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -155,60 +154,64 @@ void MX_FREERTOS_Init(void) {
 void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
-{
-    // 1. Inicjalizacja sprzętu
-  HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
-
-  // 2. Zmienne lokalne (pamięć pozycji)
-  // 'static' sprawia, że zmienna nie kasuje się przy każdym obiegu pętli
-  static int16_t last_encoder_pos = 0; 
+// 1. Inicjalizacja biblioteki enkodera (zastępuje HAL_TIM_Encoder_Start)
+  // Funkcja ta uruchamia timer zdefiniowany w henc1 (czyli htim8)
+  ENC_Init(&henc1); 
   
-  // Próg czułości: 4 impulsy to zazwyczaj jeden fizyczny "ząbek" (klik) na enkoderze.
-  // Zwiększ to, jeśli dioda reaguje zbyt nerwowo.
-  const int16_t ROTATION_THRESHOLD = 4; 
+  // Opcjonalnie: Ustawienie licznika na 0 na start (biblioteka ma do tego funkcję)
+  // Uwaga: W pliku encoder.c funkcja nazywa się ENC_SetCounter, a w .h ENC_WriteCounter.
+  // Użyjemy wersji bezpośredniej na timerze dla pewności, dopóki nie poprawisz literówki w bibliotece.
+  __HAL_TIM_SET_COUNTER(henc1.Timer, 0);
+
+  static int16_t last_encoder_pos = 0; 
+  const int16_t ROTATION_THRESHOLD = 2; // Czułość
 
   /* Infinite loop */
   for(;;)
   {
 
-        //int16_t current_pos = (int16_t)__HAL_TIM_GET_COUNTER(&htim8);
-        uint32_t current_pos = htim8.Instance->CNT;
-        // Zapis do struktury globalnej (dla innych tasków/wyświetlacza)
+// --- SEKCJA KRYTYCZNA ---
+    if (osMutexAcquire(DataMHandle, 10) == osOK)
+    {
+        // 1. ODCZYT Z BIBLIOTEKI
+        // ENC_ReadCounter zwraca uint32_t. Rzutujemy na int16_t, aby zachować
+        // logikę wykrywania kierunku przy przejściu przez zero (0 -> 65535).
+        int16_t current_pos = (int16_t)ENC_ReadCounter(&henc1);
+
+        // Zapis do struktury globalnej
         g_system_interface_config.encoder_rotate_value = current_pos;
 
-        // B. Logika diody LED (Prawo -> ON, Lewo -> OFF)
+        // 2. LOGIKA DIODY (Delta)
         int16_t delta = current_pos - last_encoder_pos;
 
         if (delta >= ROTATION_THRESHOLD) // Obrót w PRAWO
         {
-            // Zapal diodę
             HAL_GPIO_WritePin(READY_LED_GPIO_Port, READY_LED_Pin, GPIO_PIN_SET);
-            
-            // Zaktualizuj ostatnią znaną pozycję (punkt odniesienia)
-            last_encoder_pos = current_pos; 
+            last_encoder_pos = current_pos;
         }
         else if (delta <= -ROTATION_THRESHOLD) // Obrót w LEWO
         {
-            // Zgaś diodę
             HAL_GPIO_WritePin(READY_LED_GPIO_Port, READY_LED_Pin, GPIO_PIN_RESET);
-            
-            // Zaktualizuj ostatnią znaną pozycję
             last_encoder_pos = current_pos;
         }
 
-        // C. Obsługa przycisku (bez zmian, tylko dodana do Mutexa)
+        // 3. OBSŁUGA PRZYCISKU
         if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
             g_system_interface_config.btn_cs_state = true;
         } else {
             g_system_interface_config.btn_cs_state = false;
         }
 
-        if (g_system_interface_config.btn_cs_state == 1)
+        // Reset licznika przyciskiem
+        if (g_system_interface_config.btn_cs_state == true)
         {
-          HAL_GPIO_TogglePin(HEAT_LED_GPIO_Port, HEAT_LED_Pin);
+             // Reset przez bibliotekę (lub bezpośrednio na timerze)
+             __HAL_TIM_SET_COUNTER(henc1.Timer, 0);
+             henc1.Counter = 0; // Ważne: zaktualizuj też strukturę biblioteki!
+             last_encoder_pos = 0;
         }
-        
 
+        osMutexRelease(DataMHandle);
     }
 
     // Krótkie opóźnienie (np. 10ms = 100Hz odświeżania)
@@ -226,38 +229,32 @@ void StartPIDTask(void *argument)
 /* USER CODE END Header_StartCommunicationTask */
 void StartCommunicationTask(void *argument)
 {
-  /* USER CODE BEGIN StartCommunicationTask */
-  char tx_buffer[64];
-  int16_t encoder_val_to_send = 0;
+/* USER CODE BEGIN StartCommunicationTask */
+  
+  char tx_buffer[64]; // Bufor na tekst
+  int16_t val_to_send = 0;
+
   /* Infinite loop */
   for(;;)
   {
-// 1. ODCZYT DANYCH (SEKCJA KRYTYCZNA)
-    // Chcemy odczytać g_system_interface_config, więc musimy wziąć ten sam klucz co PID_Task
+    // 1. Pobranie danych (krótki czas blokady mutexa)
     if (osMutexAcquire(DataMHandle, 10) == osOK)
     {
-        encoder_val_to_send = g_system_interface_config.encoder_rotate_value;
-        
-        // Oddajemy klucz natychmiast po skopiowaniu wartości!
-        // Nie trzymaj klucza podczas wysyłania UART, bo zablokujesz PID_Task na długo.
+        val_to_send = g_system_interface_config.encoder_rotate_value;
         osMutexRelease(DataMHandle);
     }
 
-    // 2. PRZYGOTOWANIE TEKSTU
-    // %d oznacza liczbę całkowitą (int)
-    // \r\n to znak nowej linii (żeby w terminalu dane były pod sobą)
-    int len = sprintf(tx_buffer, "Encoder: %d\r\n", encoder_val_to_send);
+    // 2. Formatowanie i wysyłka
+    // Format: "ENC: <wartość>" + nowa linia
+    int len = sprintf(tx_buffer, "ENC: %d\r\n", val_to_send);
 
-    // 3. WYSYŁKA UART
-    // Używamy huart2 (standard dla USB w Nucleo).
-    // Jeśli Twoja płytka używa innego UARTu, zmień &huart2 na &huart1 lub &huart3.
-    if (len > 0) 
+    if (len > 0)
     {
+        // Używamy &huart2 (USB w Nucleo). Sprawdź w usart.c czy to właściwy uchwyt.
         HAL_UART_Transmit(&huart2, (uint8_t*)tx_buffer, len, 100);
     }
 
-    // 4. OPÓŹNIENIE
-    // 100ms = 10 razy na sekundę. To wystarczająco dla oka, a nie zapycha łącza.
+    // 3. Opóźnienie (np. 100ms = 10Hz odświeżania w terminalu)
     osDelay(100);
   }
   /* USER CODE END StartCommunicationTask */
