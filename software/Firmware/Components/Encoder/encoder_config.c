@@ -21,7 +21,7 @@
 ENC_Handle_TypeDef henc1 = {
   .Timer = &htim8,
   .Counter  = 0,
-  .CounterMax = 400, .CounterMin = 0,
+  .CounterMax = 65535, .CounterMin = 0,
   .CounterInc = 0, .CounterDec = 0,
   .TicksPerStep = 1
 };

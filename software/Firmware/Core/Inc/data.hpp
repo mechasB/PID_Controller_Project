@@ -26,7 +26,7 @@ typedef struct {
 } SystemConfig_t;
 
 typedef struct{
-    uint16_t encoder_rotate_value;
+    uint32_t encoder_rotate_value;
     bool encoder_btn_status;
     bool btn_cs_state;
     bool led_cooling_status;
