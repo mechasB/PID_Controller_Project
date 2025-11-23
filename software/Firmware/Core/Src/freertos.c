@@ -174,32 +174,11 @@ void StartPIDTask(void *argument)
 void StartCommunicationTask(void *argument)
 {
   /* USER CODE BEGIN StartCommunicationTask */
-  char tx_buffer[64]; 
-  uint32_t val_to_send = 0;
   /* Infinite loop */
   for(;;)
   {
-// 1. Pobranie danych (krótki odczyt pod Mutexem)
-    if (osMutexAcquire(DataMHandle, 10) == osOK)
-    {
-        val_to_send = g_system_interface_config.encoder_rotate_value;
-        osMutexRelease(DataMHandle);
-    }
 
-    // 2. Formatowanie JSON
-    // Używamy snprintf (bezpieczniejszy). 
-    // Format: {"encoder":123} + \r\n (powrót karetki i nowa linia)
-    int len = snprintf(tx_buffer, sizeof(tx_buffer), "{\"encoder\":%lu}\r\n", val_to_send);
-
-    // 3. Wysyłka UART
-    if (len > 0)
-    {
-        // Upewnij się, że to ten sam UART co masz podpięty do USB (huart2 lub huart3)
-        HAL_UART_Transmit(&huart2, (uint8_t*)tx_buffer, len, 100);
-    }
-
-    // 4. Opóźnienie (10Hz - płynny wykres, nie zapycha łącza)
-    osDelay(100);
+    osDelay(10);
   }
   /* USER CODE END StartCommunicationTask */
 }
@@ -218,31 +197,8 @@ void StartInterfaceTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    if (osMutexAcquire(DataMHandle, 10) == osOK)
-    {
-        // A. Odczyt Enkodera
-        // Zapisujemy surową wartość uint32_t (zgodnie z Twoim wzorcowym main.c)
-        g_system_interface_config.encoder_rotate_value = (uint16_t)ENC_ReadCounter(&henc1);
-
-        // B. Odczyt Przycisku
-        if (HAL_GPIO_ReadPin(ENCODER_BTN_GPIO_Port, ENCODER_BTN_Pin) == GPIO_PIN_RESET) {
-            g_system_interface_config.btn_cs_state = true;
-        } else {
-            g_system_interface_config.btn_cs_state = false;
-        }
-
-        // C. Logika lokalna (np. LED reagujący na przycisk)
-        if (g_system_interface_config.btn_cs_state == true)
-        {
-             // Tu możesz np. zerować enkoder przyciskiem
-             // __HAL_TIM_SET_COUNTER(henc1.Timer, 0);
-        }
-
-        // Zwalniamy zasoby
-        osMutexRelease(DataMHandle);
-    }
     
-    osDelay(20);
+    osDelay(10);
   }
   /* USER CODE END StartInterfaceTask */
 }

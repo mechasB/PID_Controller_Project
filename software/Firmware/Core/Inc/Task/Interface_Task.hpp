@@ -15,13 +15,6 @@
 #include "data.hpp"
 
 
-/* USER CODE BEGIN Header_StartInterfaceTask */
-/**
-* @brief Function implementing the Interface_Task thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartInterfaceTask */
-void StartInterfaceTask(void *argument);
+
 
 #endif 

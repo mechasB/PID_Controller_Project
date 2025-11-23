@@ -13,14 +13,7 @@
 #include "data.hpp"
 #include "usart.h"
 #include "main.h"
-//#include "Components/Embedded_Json/embedded_json.hpp"
 
-
-
-//Function definitions
-void StartCommunicationTask(void *argument);
-
-void UART_Com(void);
 
 
 #endif
