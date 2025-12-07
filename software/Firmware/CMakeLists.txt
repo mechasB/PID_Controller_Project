@@ -60,7 +60,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     #---COMPONENETS---
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder/encoder_config.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder/encoder.c"
-    #"${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/bmp280/bmp280.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.c"
 )
 
 # Add include paths
@@ -73,7 +74,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     #---COMPONENTS---
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Embedded_Json"
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder"
-    #"${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/bmp280"
 )
 
 # Add project symbols (macros)
