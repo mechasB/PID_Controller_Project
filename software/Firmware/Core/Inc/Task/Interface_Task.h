@@ -12,7 +12,7 @@
 #include "data.hpp"         
 #include "gpio.h"  
 #include "i2c.h"
-#include "i2c_lcd.h"   
+#include "I2C_LCD.h" 
 #include "bmp280.h"      
 
 #ifdef __cplusplus

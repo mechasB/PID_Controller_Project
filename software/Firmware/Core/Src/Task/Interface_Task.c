@@ -1,41 +1,55 @@
-/**
-  ******************************************************************************
-  * @file    Interface_Task.c
-  * @brief   Prosty sterownik 
-  ******************************************************************************
-  */
-
 #include "Task/Interface_Task.h"
 
 /* Private Includes */
 #include "encoder_config.h" 
-#include "i2c_lcd.h"        
+#include "I2C_LCD.h"        
 #include "data.hpp"         
-#include <stdio.h>          
 
 /* Zmienne zewnętrzne */
 extern osMutexId_t DataMHandle; 
 
 /* --- Zmienne Lokalne --- */
 static uint32_t enc_last_counter = 0;
-I2C_LCD_HandleTypeDef hlcd; 
-// Temperatura zadana (startujemy np. od 25 stopni)
-static float target_temperature = 23.0f; 
+static float target_temperature = 25.0f; 
 
-/* --- Funkcje Pomocnicze --- */
+/* --- Funkcje Pomocnicze (Konwersja bez sprintf) --- */
 
 /**
- * @brief Oblicza zmianę pozycji enkodera (delta).
- * Zwraca: +1 (prawo), -1 (lewo), 0 (brak ruchu)
+ * @brief Zamienia liczbę całkowitą (dodatnią) na tekst.
+ * @param num: Liczba do konwersji (np. 25)
+ * @param buffer: Bufor wyjściowy (np. "25")
  */
+void IntToString(int num, char* buffer) 
+{
+    int i = 0;
+    int j = 0;
+    char temp[10]; // Bufor tymczasowy na odwrócone cyfry
+
+    // Obsługa zera
+    if (num == 0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return;
+    }
+
+    // Wyciąganie cyfr od końca
+    while (num > 0) {
+        temp[j++] = (num % 10) + '0'; // Zamiana cyfry na znak ASCII
+        num /= 10;
+    }
+
+    // Odwracanie kolejności (z temp do buffer)
+    while (j > 0) {
+        buffer[i++] = temp[--j];
+    }
+    buffer[i] = '\0'; // Znak końca tekstu
+}
+
 static int8_t Encoder_Get_Step(void)
 {
     uint32_t curr_counter = ENC_ReadCounter(&henc1);
-    
-    // Oblicz różnicę z uwzględnieniem przekręcenia licznika 16-bit
     int16_t diff = (int16_t)((uint16_t)curr_counter - (uint16_t)enc_last_counter);
 
-    // Próg czułości (2 impulsy = 1 krok temperatury)
     if (diff >= 2 || diff <= -2)
     {
         enc_last_counter = curr_counter;
@@ -48,62 +62,78 @@ static int8_t Encoder_Get_Step(void)
 
 void Interface_Init(void)
 {
-    // 1. Inicjalizacja sprzętu
     ENC_Init(&henc1);
-    
-    hlcd.hi2c = &hi2c1;  
-    hlcd.address = 0x27; // Adres I2C wyświetlacza (zmień na 0x7E jeśli nie działa)
-    lcd_init(&hlcd);     
-    lcd_clear(&hlcd);
-    
-    // Reset zmiennych
     __HAL_TIM_SET_COUNTER(henc1.Timer, 0);
     enc_last_counter = 0;
+    
+    // Inicjalizacja LCD
+    I2C_LCD_Init(I2C_LCD_1);
+    I2C_LCD_Clear(I2C_LCD_1);
+    
+    // Rysujemy stałe napisy RAZ na początku (żeby nie mrugały)
+    I2C_LCD_SetCursor(I2C_LCD_1, 0, 0);
+    I2C_LCD_WriteString(I2C_LCD_1, "Zadana: ");
+    
+    I2C_LCD_SetCursor(I2C_LCD_1, 0, 1);
+    I2C_LCD_WriteString(I2C_LCD_1, "Temp:   ");
 }
 
 void Interface_Update(void)
 {
     float measured_temperature = 0.0f;
-    char lcd_buf[17]; // Bufor na tekst (16 znaków + koniec linii)
+    
+    // Bufory na tekst liczb (np. "25" i "5")
+    char str_int[10];
+    char str_frac[5];
 
-    // --- KROK 1: Synchronizacja Danych (Mutex) ---
-    if (osMutexAcquire(DataMHandle, 10) == osOK)
-    {
-        // 1. Pobierz aktualną temperaturę z czujnika
-        measured_temperature = g_system_data.measured_value;
-
-        // 2. Wyślij naszą zadaną temperaturę do reszty systemu
-        // (żeby regulator PID wiedział do czego dążyć)
-        g_system_config.reference_value = target_temperature;
-        
-        // (Opcjonalnie) wysyłamy pozycję enkodera do debugu UART
-        g_system_interface_config.encoder_rotate_value = (uint16_t)enc_last_counter;
-
-        osMutexRelease(DataMHandle);
-    }
-
-    // --- KROK 2: Obsługa Enkodera (Zmiana Zadanej) ---
+    // --- 1. Enkoder ---
     int8_t step = Encoder_Get_Step();
     if (step != 0)
     {
-        // Zmień temperaturę o 0.5 stopnia na każdy "klik"
         target_temperature += (float)step * 0.5f;
-
-        // Opcjonalne ograniczenia (np. min 0, max 100 stopni)
-        if (target_temperature < 0.0f) target_temperature = 0.0f;
-        if (target_temperature > 100.0f) target_temperature = 100.0f;
+        if (target_temperature < 0.0f)   target_temperature = 0.0f;
+        if (target_temperature > 99.0f) target_temperature = 99.0f; // Limit 99 dla czytelności LCD
     }
 
-    // --- KROK 3: Wyświetlanie (Stałe Odświeżanie) ---
-    
-    // Linia 1: Temperatura Zadana (SET)
-    // \xDF to symbol stopnia (°) na wyświetlaczach LCD
-    sprintf(lcd_buf, "Zadana: %5.1f \xDF""C", target_temperature);
-    lcd_gotoxy(&hlcd, 0, 0);
-    lcd_puts(&hlcd, lcd_buf);
+    // --- 2. Synchronizacja ---
+    if (osMutexAcquire(DataMHandle, 10) == osOK)
+    {
+        measured_temperature = g_system_data.measured_value;
+        g_system_config.reference_value = target_temperature;
+        osMutexRelease(DataMHandle);
+    }
 
-    // Linia 2: Temperatura Odczytana (ACT)
-    sprintf(lcd_buf, "Odczyt: %5.1f \xDF""C", measured_temperature);
-    lcd_gotoxy(&hlcd, 0, 1);
-    lcd_puts(&hlcd, lcd_buf);
+    // --- 3. Wyświetlanie (Bez sprintf) ---
+
+    // A. Wyświetlanie ZADANEJ (Linia 0)
+    // Rozbijamy float: 25.5 -> 25 i 5
+    int t_set_val = (int)target_temperature;
+    int t_set_dec = (int)((target_temperature - t_set_val) * 10);
+    if(t_set_dec < 0) t_set_dec = -t_set_dec;
+
+    // Konwersja na tekst
+    IntToString(t_set_val, str_int);
+    IntToString(t_set_dec, str_frac);
+
+    // Wypisywanie po kawałku (Cursor ustawiamy za napisem "Zadana: ")
+    I2C_LCD_SetCursor(I2C_LCD_1, 8, 0); 
+    I2C_LCD_WriteString(I2C_LCD_1, str_int);   // np. "25"
+    I2C_LCD_WriteChar(I2C_LCD_1, '.');         // "."
+    I2C_LCD_WriteString(I2C_LCD_1, str_frac);  // "5"
+    I2C_LCD_WriteString(I2C_LCD_1, " C  ");    // Spacje czyszczą stare śmieci
+
+    // B. Wyświetlanie OBECNEJ (Linia 1)
+    int t_cur_val = (int)measured_temperature;
+    int t_cur_dec = (int)((measured_temperature - t_cur_val) * 10);
+    if(t_cur_dec < 0) t_cur_dec = -t_cur_dec;
+
+    IntToString(t_cur_val, str_int);
+    IntToString(t_cur_dec, str_frac);
+
+    // Wypisywanie po kawałku (Cursor ustawiamy za napisem "Temp:   ")
+    I2C_LCD_SetCursor(I2C_LCD_1, 8, 1);
+    I2C_LCD_WriteString(I2C_LCD_1, str_int);
+    I2C_LCD_WriteChar(I2C_LCD_1, '.');
+    I2C_LCD_WriteString(I2C_LCD_1, str_frac);
+    I2C_LCD_WriteString(I2C_LCD_1, " C  ");
 }

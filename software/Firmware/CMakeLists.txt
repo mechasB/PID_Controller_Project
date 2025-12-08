@@ -61,7 +61,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder/encoder_config.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/Encoder/encoder.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Components/bmp280/bmp280.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/i2c_lcd.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/I2C_LCD.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Components/LCD_Library/I2C_LCD_cfg.c"
 )
 
 # Add include paths
