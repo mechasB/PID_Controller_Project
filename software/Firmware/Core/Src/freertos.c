@@ -117,11 +117,7 @@ void MX_FREERTOS_Init(void) {
   DataMHandle = osMutexNew(&DataM_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
-  // g_data_mutex = xSemaphoreCreateMutex();
 
-  // if (g_data_mutex == NULL) {
-  //     Error_Handler(); 
-  // }
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
@@ -129,7 +125,7 @@ void MX_FREERTOS_Init(void) {
   BinarySem01Handle = osSemaphoreNew(1, 1, &BinarySem01_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  //g_DataSemaphore = xSemaphoreCreateBinary();
+
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */

@@ -4,36 +4,31 @@
 #include "encoder_config.h" 
 #include "I2C_LCD.h"        
 #include "data.hpp"         
+#include "bmp280.h"         // Biblioteka czujnika
+#include "tim.h"            // Dostęp do htim6
+#include "i2c.h"            // Dostęp do hi2c1
+#include <stdio.h>          
 
 /* Zmienne zewnętrzne */
 extern osMutexId_t DataMHandle; 
+// CubeMX nazwał semafor BinarySem01Handle
+extern osSemaphoreId_t BinarySem01Handle; 
 
 /* --- Zmienne Lokalne --- */
 static uint32_t enc_last_counter = 0;
 static float target_temperature = 25.0f; 
 
-/* --- Funkcje Pomocnicze --- */
+/* Instancja BMP280 */
+BMP280_t bmp280;
 
+/* --- Funkcje Pomocnicze --- */
 void IntToString(int num, char* buffer) 
 {
-    int i = 0;
-    int j = 0;
+    int i = 0, j = 0;
     char temp[10];
-
-    if (num == 0) {
-        buffer[0] = '0';
-        buffer[1] = '\0';
-        return;
-    }
-
-    while (num > 0) {
-        temp[j++] = (num % 10) + '0';
-        num /= 10;
-    }
-
-    while (j > 0) {
-        buffer[i++] = temp[--j];
-    }
+    if (num == 0) { buffer[0] = '0'; buffer[1] = '\0'; return; }
+    while (num > 0) { temp[j++] = (num % 10) + '0'; num /= 10; }
+    while (j > 0) { buffer[i++] = temp[--j]; }
     buffer[i] = '\0';
 }
 
@@ -41,9 +36,7 @@ static int8_t Encoder_Get_Step(void)
 {
     uint32_t curr_counter = ENC_ReadCounter(&henc1);
     int16_t diff = (int16_t)((uint16_t)curr_counter - (uint16_t)enc_last_counter);
-
-    if (diff >= 2 || diff <= -2)
-    {
+    if (diff >= 2 || diff <= -2) {
         enc_last_counter = curr_counter;
         return (int8_t)(diff / 2); 
     }
@@ -54,58 +47,81 @@ static int8_t Encoder_Get_Step(void)
 
 void Interface_Init(void)
 {
+    // 1. Enkoder
     ENC_Init(&henc1);
     __HAL_TIM_SET_COUNTER(henc1.Timer, 0);
     enc_last_counter = 0;
     
+    // 2. LCD
     I2C_LCD_Init(I2C_LCD_1);
     I2C_LCD_Clear(I2C_LCD_1);
     
-    // Rysujemy stałe elementy
+    // 3. BMP280 (Inicjalizacja)
+    // Sprawdź adres 0x76 lub 0x77
+    bmp280.bmp_i2c = &hi2c1;
+    bmp280.Address = 0x76; 
+    
+    if (BMP280_Init(&bmp280, &hi2c1, 0x76) != 0)
+    {
+        I2C_LCD_WriteString(I2C_LCD_1, "ERR: BMP280");
+        HAL_Delay(1000);
+        I2C_LCD_Clear(I2C_LCD_1);
+    }
+    
+    // 4. START TIMERA Z PRZERWANIEM
+    // To uruchamia machinę: Timer -> Przerwanie -> Semafor
+    HAL_TIM_Base_Start_IT(&htim6);
+
+    // Stałe napisy
     I2C_LCD_SetCursor(I2C_LCD_1, 0, 0);
     I2C_LCD_WriteString(I2C_LCD_1, "Zadana: ");
-    
     I2C_LCD_SetCursor(I2C_LCD_1, 0, 1);
     I2C_LCD_WriteString(I2C_LCD_1, "Temp:   ");
 }
 
 void Interface_Update(void)
 {
-    char str_int[10];
-    char str_frac[5];
+    char str_int[10], str_frac[5];
 
-    // --- 1. Enkoder ---
+    // --- CZĘŚĆ A: SZYBKA (Enkoder) ---
+    // Działa zawsze, bez czekania
     int8_t step = Encoder_Get_Step();
     if (step != 0)
     {
-        // ZMIANA: Krok 0.1 stopnia
         target_temperature += (float)step * 0.1f;
-        
-        // Limity
-        if (target_temperature < 0.0f)   target_temperature = 0.0f;
+        if (target_temperature < 0.0f) target_temperature = 0.0f;
         if (target_temperature > 99.0f) target_temperature = 99.0f;
     }
 
-    // --- 2. Synchronizacja ---
-    float current_meas = 0.0f;
+    // --- CZĘŚĆ B: CYKLICZNA (Odczyt Czujnika co 1s) ---
+    // Sprawdzamy semafor z czasem oczekiwania 0 (non-blocking)
+    if (osSemaphoreAcquire(BinarySem01Handle, 0) == osOK)
+    {
+        // Wchodzimy tu tylko raz na sekundę!
+        float temp_read = BMP280_ReadTemperature(&bmp280);
+
+        // Zapisz do danych globalnych
+        if (osMutexAcquire(DataMHandle, 10) == osOK)
+        {
+            g_system_data.measured_value = temp_read;
+            osMutexRelease(DataMHandle);
+        }
+    }
+
+    // --- CZĘŚĆ C: Synchronizacja Zadanej ---
     if (osMutexAcquire(DataMHandle, 10) == osOK)
     {
-        current_meas = g_system_data.measured_value;
         g_system_config.reference_value = target_temperature;
         osMutexRelease(DataMHandle);
     }
 
-    // --- 3. Wyświetlanie ZADANEJ (Linia 0) ---
+    // --- CZĘŚĆ D: Wyświetlanie ---
+    
+    // 1. Zadana
     int t_set_val = (int)target_temperature;
-    
-    // POPRAWKA ZAOKRĄGLANIA: Dodajemy 0.5f przed rzutowaniem na int.
-    // Dzięki temu 0.09999 zamieni się na 0.1 -> 1, a nie 0.
     int t_set_dec = (int)(((target_temperature - t_set_val) * 10) + 0.5f);
-    
-    // Zabezpieczenie przed "wskoczeniem" dziesiątki (gdyby zaokrąglenie dało 10)
     if (t_set_dec >= 10) { t_set_dec = 0; t_set_val++; }
-    if (t_set_dec < 0) t_set_dec = 0;
-
+    
     IntToString(t_set_val, str_int);
     IntToString(t_set_dec, str_frac);
 
@@ -115,12 +131,11 @@ void Interface_Update(void)
     I2C_LCD_WriteString(I2C_LCD_1, str_frac);
     I2C_LCD_WriteString(I2C_LCD_1, " C  ");
 
-    // --- 4. Wyświetlanie OBECNEJ (Linia 1) ---
+    // 2. Odczytana (z globalnej struktury)
+    float current_meas = g_system_data.measured_value;
     int t_cur_val = (int)current_meas;
     int t_cur_dec = (int)(((current_meas - t_cur_val) * 10) + 0.5f);
-    
     if (t_cur_dec >= 10) { t_cur_dec = 0; t_cur_val++; }
-    if (t_cur_dec < 0) t_cur_dec = 0;
 
     IntToString(t_cur_val, str_int);
     IntToString(t_cur_dec, str_frac);
