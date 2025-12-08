@@ -4,19 +4,18 @@
 #include "encoder_config.h" 
 #include "I2C_LCD.h"        
 #include "data.hpp"         
-#include "bmp280.h"         // Biblioteka czujnika
-#include "tim.h"            // Dostęp do htim6
-#include "i2c.h"            // Dostęp do hi2c1
+#include "bmp280.h"         
+#include "tim.h"            
+#include "i2c.h"            
 #include <stdio.h>          
 
 /* Zmienne zewnętrzne */
 extern osMutexId_t DataMHandle; 
-// CubeMX nazwał semafor BinarySem01Handle
 extern osSemaphoreId_t BinarySem01Handle; 
 
 /* --- Zmienne Lokalne --- */
 static uint32_t enc_last_counter = 0;
-static float target_temperature = 25.0f; 
+static float target_temperature = 22.0f; 
 
 /* Instancja BMP280 */
 BMP280_t bmp280;
@@ -58,13 +57,13 @@ void Interface_Init(void)
     
     // 3. BMP280 (Inicjalizacja)
     // Sprawdź adres 0x76 lub 0x77
-    bmp280.bmp_i2c = &hi2c1;
+    bmp280.bmp_i2c = &hi2c2;
     bmp280.Address = 0x76; 
     
-    if (BMP280_Init(&bmp280, &hi2c1, 0x76) != 0)
+    if (BMP280_Init(&bmp280, &hi2c2, 0x76) != 0)
     {
         I2C_LCD_WriteString(I2C_LCD_1, "ERR: BMP280");
-        HAL_Delay(1000);
+        osDelay(1000);
         I2C_LCD_Clear(I2C_LCD_1);
     }
     
@@ -83,8 +82,7 @@ void Interface_Update(void)
 {
     char str_int[10], str_frac[5];
 
-    // --- CZĘŚĆ A: SZYBKA (Enkoder) ---
-    // Działa zawsze, bez czekania
+
     int8_t step = Encoder_Get_Step();
     if (step != 0)
     {
@@ -93,8 +91,6 @@ void Interface_Update(void)
         if (target_temperature > 99.0f) target_temperature = 99.0f;
     }
 
-    // --- CZĘŚĆ B: CYKLICZNA (Odczyt Czujnika co 1s) ---
-    // Sprawdzamy semafor z czasem oczekiwania 0 (non-blocking)
     if (osSemaphoreAcquire(BinarySem01Handle, 0) == osOK)
     {
         // Wchodzimy tu tylko raz na sekundę!
@@ -108,14 +104,12 @@ void Interface_Update(void)
         }
     }
 
-    // --- CZĘŚĆ C: Synchronizacja Zadanej ---
     if (osMutexAcquire(DataMHandle, 10) == osOK)
     {
         g_system_config.reference_value = target_temperature;
         osMutexRelease(DataMHandle);
     }
 
-    // --- CZĘŚĆ D: Wyświetlanie ---
     
     // 1. Zadana
     int t_set_val = (int)target_temperature;
