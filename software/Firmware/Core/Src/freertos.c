@@ -36,6 +36,7 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -82,6 +83,14 @@ osMutexId_t DataMHandle;
 const osMutexAttr_t DataM_attributes = {
   .name = "DataM"
 };
+/* Definitions for BinarySem01 */
+osSemaphoreId_t BinarySem01Handle;
+osStaticSemaphoreDef_t BinarySem01ControlBlock;
+const osSemaphoreAttr_t BinarySem01_attributes = {
+  .name = "BinarySem01",
+  .cb_mem = &BinarySem01ControlBlock,
+  .cb_size = sizeof(BinarySem01ControlBlock),
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -114,6 +123,10 @@ void MX_FREERTOS_Init(void) {
   //     Error_Handler(); 
   // }
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of BinarySem01 */
+  BinarySem01Handle = osSemaphoreNew(1, 1, &BinarySem01_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   //g_DataSemaphore = xSemaphoreCreateBinary();
