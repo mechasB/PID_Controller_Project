@@ -11,18 +11,32 @@
 #define JSON_TX_BUFFER_SIZE 256
 
 typedef struct {
-    float measured_value;   // Aktualna wartość mierzona (element pomiarowy)
-    float control_signal;   // Sygnał sterujący (element wykonawczy)
-    float pid_error;        // Błąd regulacji (algorytm sterowania)
-    uint32_t timestamp;     // Czas od startu systemu (do synchronizacji z PC)
-    uint8_t system_status;  // Status pracy (np. 0-OK, 1-Błąd)
+    float measured_value;
+    float control_signal; // Wyjście PID (0-1000 lub 0-100%)
+    float pid_error;
+    
+    float pid_integrator; // Pamięć członu całkującego
+    float pid_prev_error; // Poprzedni błąd (dla członu D)
+    // ---------------------
+    
+    uint32_t timestamp;
+    uint8_t system_status;
 } SystemData_t;
 
-
 typedef struct {
-    float reference_value;  // Wartość referencyjna/zadana (interfejs użytkownika)
-    float kp, ki, kd;       // Nastawy regulatora PID (modyfikacja parametrów )
-    uint16_t sample_period; // Okres próbkowania
+    float reference_value; // Temperatura zadana
+    
+    // Nastawy PID
+    float kp;
+    float ki;
+    float kd; 
+    
+    float sample_period; // w ms (np. 100)
+    
+    // --- DODANE LIMITY (opcjonalnie, można też hardcodować w #define) ---
+    float output_limit_max; // Np. 1000.0 (ARR timera)
+    float output_limit_min; // Np. 0.0
+    // --------------------------------------------------------------------
 } SystemConfig_t;
 
 typedef struct{

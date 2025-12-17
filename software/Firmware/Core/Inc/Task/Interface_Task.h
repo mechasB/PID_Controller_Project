@@ -8,12 +8,14 @@
 #ifndef INTERFACE_TASK_HPP_
 #define INTERFACE_TASK_HPP_
 
+/* Private Includes */
 #include "encoder_config.h" 
+#include "I2C_LCD.h"        
 #include "data.hpp"         
-#include "gpio.h"  
-#include "i2c.h"
-#include "I2C_LCD.h" 
-#include "bmp280.h"      
+#include "bmp280.h"         
+#include "tim.h"            
+#include "i2c.h"            
+#include <stdio.h>       
 
 #ifdef __cplusplus
 extern "C" {

@@ -7,6 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from collections import deque
 import threading
 import time
+import json
 
 class PIDMonitorApp:
     def __init__(self, root):
@@ -165,39 +166,41 @@ class PIDMonitorApp:
     def read_serial_loop(self):
         while self.is_reading and self.ser.is_open:
             try:
-                line = self.ser.readline().decode('utf-8').strip()
+                # Odczyt linii i dekodowanie
+                line = self.ser.readline().decode('utf-8', errors='ignore').strip()
                 if not line:
                     continue
                 
-                # Oczekiwany format CSV: Czas;Zadana;Mierzona;Sterowanie
-                # Np: "12500;30.0;22.5;90.0"
-                parts = line.split(';')
-                
-                if len(parts) >= 3: # Zakładamy minimum 3 dane
-                    # Czas (można ignorować i używać licznika próbek)
-                    t = len(self.data_time) # Prosty licznik
-                    sp = float(parts[1])    # Setpoint
-                    pv = float(parts[2])    # Process Variable
+                # --- TUTAJ JEST ZMIANA NA JSON ---
+                try:
+                    # Próba parsowania JSON
+                    data_json = json.loads(line)
                     
-                    # Opcjonalnie sterowanie do kosztu (jeśli jest wysyłane jako 4-te)
-                    ctrl = float(parts[3]) if len(parts) > 3 else 0.0
+                    # Pobieranie danych po kluczach z JSON-a STM32
+                    # Klucze: "ts", "sp", "pv", "cv", "err"
+                    t = self.sample_count  # Używamy licznika próbek dla osi X
+                    sp = float(data_json.get("sp", 0.0))
+                    pv = float(data_json.get("pv", 0.0))
+                    ctrl = float(data_json.get("cv", 0.0))
+                    err = float(data_json.get("err", 0.0))
 
-                    err = sp - pv
-
-                    # Dodawanie do buforów (wątek bezpieczny dla deque)
+                    # Dodawanie do buforów
                     self.data_time.append(t)
                     self.data_setpoint.append(sp)
                     self.data_measured.append(pv)
                     self.data_error.append(err)
                     self.data_control.append(ctrl)
 
-                    # Obliczenia statystyk
+                    # Statystyki
                     self.sum_squared_error += (err ** 2)
-                    self.control_cost += (ctrl ** 2) * 0.1 # Przybliżona całka energii
+                    self.control_cost += (ctrl ** 2) * 0.1 
                     self.sample_count += 1
+                    
+                except json.JSONDecodeError:
+                    # Ignorujemy linie, które nie są JSON-em (np. komunikaty debugowe)
+                    print(f"Ignored raw line: {line}")
+                    pass
 
-            except ValueError:
-                pass # Ignoruj błędne linie
             except Exception as e:
                 print(f"Błąd odczytu: {e}")
                 break

@@ -167,11 +167,20 @@ void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
 
+/* USER CODE BEGIN StartPIDTask */
+  
+  // 1. Initialize PID (PWM Start, etc.)
+  PID_Init();
+
   /* Infinite loop */
   for(;;)
   {
+    // 2. Run PID Loop
+    PID_Update();
     
-    osDelay(10);
+    // 3. Wait for sampling time (e.g., 100ms)
+    // This defines your sample rate Ts!
+    osDelay(10); 
   }
   /* USER CODE END StartPIDTask */
 }
@@ -191,7 +200,7 @@ void StartCommunicationTask(void *argument)
   for(;;)
   {
     Communication_Update();
-    osDelay(100);
+    osDelay(10);
   }
   /* USER CODE END StartCommunicationTask */
 }

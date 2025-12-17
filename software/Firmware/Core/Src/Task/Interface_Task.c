@@ -1,13 +1,5 @@
 #include "Task/Interface_Task.h"
-
-/* Private Includes */
-#include "encoder_config.h" 
-#include "I2C_LCD.h"        
-#include "data.hpp"         
-#include "bmp280.h"         
-#include "tim.h"            
-#include "i2c.h"            
-#include <stdio.h>          
+     
 
 /* Zmienne zewnętrzne */
 extern osMutexId_t DataMHandle; 
