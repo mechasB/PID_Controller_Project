@@ -8,7 +8,10 @@ SystemData_t g_system_data = {
     .control_signal = 0.0f,
     .pid_error      = 0.0f,
     .pid_integrator = 0.0f,  // Ważne: zerowanie całki przy starcie
-    .pid_prev_error = 0.0f
+    .pid_prev_error = 0.0f,
+
+    .is_fan_on = 0,     // Czy wentylator się kręci?
+    .is_ready_on = 0
 };
 
 // 2. Konfiguracja (Wartości domyślne PID i temperatury)

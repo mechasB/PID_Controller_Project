@@ -12,25 +12,23 @@ import json
 class PIDMonitorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PID Controller Monitor (CRC + Settings)")
-        self.root.geometry("1000x850")
+        self.root.title("PID Monitor (FAN & READY Status)")
+        self.root.geometry("1100x850")
 
         self.ser = None
         self.is_reading = False
         
-        # Dane
-        self.max_samples = 200
-        self.data_time = deque(maxlen=self.max_samples)
-        self.data_setpoint = deque(maxlen=self.max_samples)
+        self.max_samples = 300
         self.data_measured = deque(maxlen=self.max_samples)
+        self.data_setpoint = deque(maxlen=self.max_samples)
         self.data_error = deque(maxlen=self.max_samples)
         
-        # Zmienne Live
         self.live_pwm = 0.0
-        self.live_kp = 0.0
-        self.live_ki = 0.0
-        self.live_kd = 0.0
-        self.crc_errors = 0 
+        self.live_kp = 0.0; self.live_ki = 0.0; self.live_kd = 0.0
+        self.fan_status = 0
+        self.rdy_status = 0
+        
+        self.crc_errors = 0
         self.sum_squared_error = 0.0
         self.sample_count = 0
 
@@ -51,7 +49,7 @@ class PIDMonitorApp:
         self.btn_connect = ttk.Button(conn, text="Połącz", command=self.toggle_connection)
         self.btn_connect.pack(side=tk.LEFT, padx=5)
 
-        # Nastawy PID
+        # PID Send
         pid_fr = ttk.Frame(control)
         pid_fr.pack(side=tk.LEFT, padx=20)
         self.entries = {}
@@ -61,25 +59,35 @@ class PIDMonitorApp:
             e.pack(side=tk.LEFT, padx=2); e.insert(0, "0.0")
             self.entries[l] = e
         ttk.Button(pid_fr, text="Wyślij", command=self.send_pid).pack(side=tk.LEFT, padx=10)
-
-        # Status
-        status = ttk.LabelFrame(self.root, text="Status", padding=10)
-        status.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
-        row1 = ttk.Frame(status); row1.pack(fill=tk.X)
         
-        self.lbl_mse = ttk.Label(row1, text="MSE: 0.000", width=12)
-        self.lbl_mse.pack(side=tk.LEFT)
-        self.lbl_err_pct = ttk.Label(row1, text="Błąd wzgl.: 0.0%", width=16, foreground="red")
-        self.lbl_err_pct.pack(side=tk.LEFT)
-        self.lbl_pwm = ttk.Label(row1, text="PWM: 0.0%", font=("Arial", 11, "bold"), foreground="blue")
-        self.lbl_pwm.pack(side=tk.LEFT, padx=20)
-        self.lbl_crc = ttk.Label(row1, text="CRC Err: 0", foreground="orange")
-        self.lbl_crc.pack(side=tk.LEFT, padx=20)
+        ttk.Button(control, text="Reset", command=self.reset_stats).pack(side=tk.RIGHT, padx=10)
 
-        row2 = ttk.Frame(status); row2.pack(fill=tk.X)
-        ttk.Label(row2, text="PID (MCU): ", font=("bold")).pack(side=tk.LEFT)
-        self.lbl_pid_read = ttk.Label(row2, text="-")
-        self.lbl_pid_read.pack(side=tk.LEFT)
+        # --- STATUS INDICATORS (NOWOŚĆ) ---
+        status_frame = ttk.LabelFrame(self.root, text="Status Systemu", padding=10)
+        status_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
+        
+        row1 = ttk.Frame(status_frame)
+        row1.pack(fill=tk.X, pady=5)
+
+        # Wskaźnik FAN
+        self.lbl_fan_ind = tk.Label(row1, text=" FAN ", bg="gray", fg="white", font=("Arial", 10, "bold"), width=8)
+        self.lbl_fan_ind.pack(side=tk.LEFT, padx=10)
+
+        # Wskaźnik READY
+        self.lbl_rdy_ind = tk.Label(row1, text=" READY ", bg="gray", fg="white", font=("Arial", 10, "bold"), width=8)
+        self.lbl_rdy_ind.pack(side=tk.LEFT, padx=10)
+
+        # Dane liczbowe
+        self.lbl_pwm = ttk.Label(row1, text="PWM: 0.0%", font=("Arial", 11, "bold"))
+        self.lbl_pwm.pack(side=tk.LEFT, padx=20)
+        
+        self.lbl_err_pct = ttk.Label(row1, text="Błąd: 0.0%", foreground="red")
+        self.lbl_err_pct.pack(side=tk.LEFT, padx=10)
+
+        self.lbl_pid_read = ttk.Label(row1, text="PID: -")
+        self.lbl_pid_read.pack(side=tk.RIGHT, padx=10)
+        self.lbl_crc = ttk.Label(row1, text="CRC Err: 0", foreground="orange")
+        self.lbl_crc.pack(side=tk.RIGHT, padx=10)
 
         self.refresh_ports()
 
@@ -105,6 +113,7 @@ class PIDMonitorApp:
     def toggle_connection(self):
         if self.ser and self.ser.is_open:
             self.is_reading = False; self.ser.close(); self.btn_connect.config(text="Połącz")
+            self.lbl_fan_ind.config(bg="gray"); self.lbl_rdy_ind.config(bg="gray")
         else:
             try:
                 self.ser = serial.Serial(self.port_combo.get(), 115200, timeout=1)
@@ -152,6 +161,10 @@ class PIDMonitorApp:
                 self.live_ki = float(d.get("ki", 0))
                 self.live_kd = float(d.get("kd", 0))
                 
+                # Odbiór stanów Fan i Ready (domyślnie 0)
+                self.fan_status = int(d.get("fan", 0))
+                self.rdy_status = int(d.get("rdy", 0))
+
                 sp, pv = float(d.get("sp", 0)), float(d.get("pv", 0))
                 err = float(d.get("err", 0))
 
@@ -169,14 +182,27 @@ class PIDMonitorApp:
     def update_gui(self):
         if self.is_reading:
             if self.sample_count > 0:
-                self.lbl_mse.config(text=f"MSE: {self.sum_squared_error/self.sample_count:.4f}")
                 last_sp = self.data_setpoint[-1]
                 pct = (self.data_error[-1]/last_sp*100) if last_sp!=0 else 0
-                self.lbl_err_pct.config(text=f"Błąd wzgl.: {pct:.1f}%")
+                self.lbl_err_pct.config(text=f"Błąd: {pct:.1f}%")
 
             self.lbl_pwm.config(text=f"PWM: {self.live_pwm:.1f}%")
             self.lbl_crc.config(text=f"CRC Err: {self.crc_errors}")
             self.lbl_pid_read.config(text=f"Kp: {self.live_kp:.2f} | Ki: {self.live_ki:.3f} | Kd: {self.live_kd:.2f}")
+
+            # --- AKTUALIZACJA KOLORÓW WSKAŹNIKÓW ---
+            
+            # Fan: Niebieski gdy włączony, szary gdy wyłączony
+            if self.fan_status == 1:
+                self.lbl_fan_ind.config(bg="#3399FF", text="FAN: ON")
+            else:
+                self.lbl_fan_ind.config(bg="#DDDDDD", text="FAN: OFF")
+
+            # Ready: Zielony gdy gotowe, szary gdy nie
+            if self.rdy_status == 1:
+                self.lbl_rdy_ind.config(bg="#00CC00", text="READY")
+            else:
+                self.lbl_rdy_ind.config(bg="#DDDDDD", text="WAIT...")
 
             x = range(len(self.data_measured))
             self.line_sp.set_data(x, self.data_setpoint)

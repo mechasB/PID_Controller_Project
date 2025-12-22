@@ -18,6 +18,9 @@ typedef struct
     float pid_error;        // Aktualny uchyb (SetPoint - Measured)
     float pid_integrator;   // Suma błędów (człon całkujący) - pamięć
     float pid_prev_error;   // Poprzedni błąd (dla członu różniczkującego)
+
+    bool is_fan_on;     // Czy wentylator się kręci?
+    bool is_ready_on;
     
 } SystemData_t;
 
