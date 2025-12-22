@@ -1,27 +1,32 @@
 #include "data.hpp"
 
-// Inicjalizacja zmiennych globalnych
+/* --- INICJALIZACJA ZMIENNYCH GLOBALNYCH --- */
+
+// 1. Dane systemowe (startujemy od zer)
 SystemData_t g_system_data = {
     .measured_value = 0.0f,
     .control_signal = 0.0f,
-    .pid_error = 0.0f,
-    .timestamp = 0,
-    .system_status = 0
+    .pid_error      = 0.0f,
+    .pid_integrator = 0.0f,  // Ważne: zerowanie całki przy starcie
+    .pid_prev_error = 0.0f
 };
 
+// 2. Konfiguracja (Wartości domyślne PID i temperatury)
 SystemConfig_t g_system_config = {
-    .reference_value = 25.0f, // Przykładowa wartość zadana
-    .kp = 1.0f,
-    .ki = 0.1f,
-    .kd = 0.01f,
-    .sample_period = 10 // Przykładowy okres próbkowania w ms
+    .reference_value = 25.0f, // Domyślna temperatura zadana
+    
+    // Domyślne nastawy PID (bezpieczne wartości na start)
+    .kp = 59.2041f,
+    .ki = 0.34173f,
+    .kd = 0.0f        // Domyślnie człon D wyłączony
 };
 
+// 3. Interfejs
 SystemInterfaceConfig_t g_system_interface_config = {
     .encoder_rotate_value = 0,
-    .encoder_btn_status = false,
-    .btn_cs_state = false,
-    .led_cooling_status = false,
-    .led_heat_status = false,
-    .led_ready_status = false
+    .encoder_btn_status = false
 };
+
+// UWAGA: Zmienna 'DataMHandle' nie jest tu definiowana, 
+// ponieważ jest generowana przez CubeMX w pliku freertos.c lub main.c.
+// W data.hpp mamy tylko 'extern' do niej.

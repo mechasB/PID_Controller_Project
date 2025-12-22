@@ -90,3 +90,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+
+# --- 4. OPCJE LINKERA (KLUCZOWE!) ---
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    # Włączamy obsługę float dla printf (wysyłanie JSON z UART)
+    -u _printf_float
+    
+    # ZABRONIONE: Nie włączamy scanf float, aby oszczędzać stos!
+    # -u _scanf_float  <-- To musi być wyłączone/zakomentowane
+)

@@ -199,19 +199,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     HAL_IncTick();
   }
+  /* USER CODE BEGIN Callback 1 */
 
-  // --- DODANA NASZA LOGIKA ---
-  // Sprawdzamy czy przerwanie pochodzi od TIM6 (nasz timer 1Hz)
-  // UWAGA: Jeśli TIM6 jest używany też do HAL_IncTick (powyżej), to ten kod wykona się też przy okazji.
-  // Jeśli masz osobny timer dla HAL (np. TIM1 lub SysTick), to powyższy if będzie inny.
-
-  if (htim->Instance == TIM6)
-  {
-      if (BinarySem01Handle != NULL)
-      {
-          osSemaphoreRelease(BinarySem01Handle);
-      }
-  }
   /* USER CODE END Callback 1 */
 }
 

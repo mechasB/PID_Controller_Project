@@ -1,41 +1,64 @@
+#ifndef DATA_HPP_
+#define DATA_HPP_
 
-#ifndef _DATA_H
-#define _DATA_H
-
-#include <stdint.h>
+#include "main.h"         // Dołącza definicje typów HAL
+#include "cmsis_os.h"     // Dołącza definicje FreeRTOS (np. osMutexId_t)
 #include <stdbool.h>
-#include "cmsis_os2.h"
-// #include "semphr.h"
-// #include "FreeRTOS.h"
+#include <stdint.h>
 
-#define JSON_TX_BUFFER_SIZE 256
+/* --- 1. DEFINICJE STRUKTUR --- */
 
-typedef struct {
-    float measured_value;   // Aktualna wartość mierzona (element pomiarowy)
-    float control_signal;   // Sygnał sterujący (element wykonawczy)
-    float pid_error;        // Błąd regulacji (algorytm sterowania)
-    uint32_t timestamp;     // Czas od startu systemu (do synchronizacji z PC)
-    uint8_t system_status;  // Status pracy (np. 0-OK, 1-Błąd)
+// Struktura danych dynamicznych (zmieniają się w trakcie pracy)
+typedef struct
+{
+    float measured_value;   // Aktualna temperatura (z BMP280)
+    float control_signal;   // Wyliczone sterowanie PID (0.0 - 1000.0)
+    
+    // Zmienne wewnętrzne regulatora PID (State variables)
+    float pid_error;        // Aktualny uchyb (SetPoint - Measured)
+    float pid_integrator;   // Suma błędów (człon całkujący) - pamięć
+    float pid_prev_error;   // Poprzedni błąd (dla członu różniczkującego)
+    
 } SystemData_t;
 
-
-typedef struct {
-    float reference_value;  // Wartość referencyjna/zadana (interfejs użytkownika)
-    float kp, ki, kd;       // Nastawy regulatora PID (modyfikacja parametrów )
-    uint16_t sample_period; // Okres próbkowania
+// Struktura konfiguracji (Nastawy)
+typedef struct
+{
+    float reference_value;  // Temperatura zadana (SetPoint)
+    
+    // Współczynniki PID (ustawiane przez UART lub na sztywno)
+    float kp;
+    float ki;
+    float kd;
+    
 } SystemConfig_t;
 
-typedef struct{
-    uint32_t encoder_rotate_value;
-    bool encoder_btn_status;
-    bool btn_cs_state;
-    bool led_cooling_status;
-    bool led_heat_status;
-    bool led_ready_status; 
+// Struktura interfejsu (Enkoder/Przyciski)
+typedef struct
+{
+    int32_t encoder_rotate_value; // Licznik impulsów enkodera
+    bool encoder_btn_status;      // Flaga wciśnięcia przycisku
+    
 } SystemInterfaceConfig_t;
 
+
+/* --- 2. DEKLARACJE ZMIENNYCH GLOBALNYCH (EXTERN) --- */
+// Dzięki temu inne pliki (.c) widzą te zmienne, ale ich nie tworzą od nowa.
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Zmienne z danymi
 extern SystemData_t g_system_data;
 extern SystemConfig_t g_system_config;
 extern SystemInterfaceConfig_t g_system_interface_config;
 
-#endif // DATA_H
+// Uchwyt do Mutexu (zdefiniowany w main.c lub freertos.c przez CubeMX)
+extern osMutexId_t DataMHandle;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* DATA_HPP_ */

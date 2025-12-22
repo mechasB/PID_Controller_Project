@@ -68,7 +68,7 @@ const osThreadAttr_t PID_Task_attributes = {
 osThreadId_t Communication_THandle;
 const osThreadAttr_t Communication_T_attributes = {
   .name = "Communication_T",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Interface_Task */
@@ -166,11 +166,11 @@ void MX_FREERTOS_Init(void) {
 void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
-
+  PID_Init();
   /* Infinite loop */
   for(;;)
   {
-    
+    PID_Update();
     osDelay(10);
   }
   /* USER CODE END StartPIDTask */
@@ -191,7 +191,7 @@ void StartCommunicationTask(void *argument)
   for(;;)
   {
     Communication_Update();
-    osDelay(100);
+    osDelay(10);
   }
   /* USER CODE END StartCommunicationTask */
 }
