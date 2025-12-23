@@ -12,17 +12,19 @@ import json
 class PIDMonitorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PID Monitor (FAN & READY Status)")
+        self.root.title("PID Monitor (Interrupt Based)")
         self.root.geometry("1100x850")
 
         self.ser = None
         self.is_reading = False
         
+        # Dane wykresów
         self.max_samples = 300
         self.data_measured = deque(maxlen=self.max_samples)
         self.data_setpoint = deque(maxlen=self.max_samples)
         self.data_error = deque(maxlen=self.max_samples)
         
+        # Zmienne statusu
         self.live_pwm = 0.0
         self.live_kp = 0.0; self.live_ki = 0.0; self.live_kd = 0.0
         self.fan_status = 0
@@ -40,7 +42,7 @@ class PIDMonitorApp:
         control = ttk.LabelFrame(self.root, text="Panel Sterowania", padding=10)
         control.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
 
-        # Połączenie
+        # 1. Połączenie
         conn = ttk.Frame(control)
         conn.pack(side=tk.LEFT, padx=10)
         self.port_combo = ttk.Combobox(conn, width=15)
@@ -49,7 +51,7 @@ class PIDMonitorApp:
         self.btn_connect = ttk.Button(conn, text="Połącz", command=self.toggle_connection)
         self.btn_connect.pack(side=tk.LEFT, padx=5)
 
-        # PID Send
+        # 2. Nastawy PID (Wysyłanie)
         pid_fr = ttk.Frame(control)
         pid_fr.pack(side=tk.LEFT, padx=20)
         self.entries = {}
@@ -58,29 +60,26 @@ class PIDMonitorApp:
             e = ttk.Entry(pid_fr, width=6)
             e.pack(side=tk.LEFT, padx=2); e.insert(0, "0.0")
             self.entries[l] = e
-        ttk.Button(pid_fr, text="Wyślij", command=self.send_pid).pack(side=tk.LEFT, padx=10)
         
-        ttk.Button(control, text="Reset", command=self.reset_stats).pack(side=tk.RIGHT, padx=10)
+        # Przycisk wysyłania - wywołuje funkcję send_pid
+        ttk.Button(pid_fr, text="Wyślij Nastawy", command=self.send_pid).pack(side=tk.LEFT, padx=10)
+        
+        # 3. Reset
+        ttk.Button(control, text="Reset Statystyk", command=self.reset_stats).pack(side=tk.RIGHT, padx=10)
 
-        # --- STATUS INDICATORS (NOWOŚĆ) ---
+        # 4. Status (LEDy i Liczby)
         status_frame = ttk.LabelFrame(self.root, text="Status Systemu", padding=10)
         status_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
-        
-        row1 = ttk.Frame(status_frame)
-        row1.pack(fill=tk.X, pady=5)
+        row1 = ttk.Frame(status_frame); row1.pack(fill=tk.X, pady=5)
 
-        # Wskaźnik FAN
         self.lbl_fan_ind = tk.Label(row1, text=" FAN ", bg="gray", fg="white", font=("Arial", 10, "bold"), width=8)
         self.lbl_fan_ind.pack(side=tk.LEFT, padx=10)
 
-        # Wskaźnik READY
         self.lbl_rdy_ind = tk.Label(row1, text=" READY ", bg="gray", fg="white", font=("Arial", 10, "bold"), width=8)
         self.lbl_rdy_ind.pack(side=tk.LEFT, padx=10)
 
-        # Dane liczbowe
         self.lbl_pwm = ttk.Label(row1, text="PWM: 0.0%", font=("Arial", 11, "bold"))
         self.lbl_pwm.pack(side=tk.LEFT, padx=20)
-        
         self.lbl_err_pct = ttk.Label(row1, text="Błąd: 0.0%", foreground="red")
         self.lbl_err_pct.pack(side=tk.LEFT, padx=10)
 
@@ -123,13 +122,27 @@ class PIDMonitorApp:
                 self.reset_stats()
             except Exception as e: messagebox.showerror("Błąd", str(e))
 
+    # --- FUNKCJA WYSYŁANIA DANYCH DO STM32 ---
     def send_pid(self):
         if self.ser and self.ser.is_open:
             try:
-                cmd = f"PID:{float(self.entries['Kp'].get()):.2f}:{float(self.entries['Ki'].get()):.4f}:{float(self.entries['Kd'].get()):.2f}\n"
+                kp = float(self.entries['Kp'].get())
+                ki = float(self.entries['Ki'].get())
+                kd = float(self.entries['Kd'].get())
+                
+                # Budujemy komendę: PID:Kp:Ki:Kd + znak nowej linii (\n)
+                # Znak \n jest kluczowy dla przerwania w STM32!
+                cmd = f"PID:{kp:.2f}:{ki:.4f}:{kd:.2f}\n"
+                
                 self.ser.write(cmd.encode('utf-8'))
-                print(f"Sent: {cmd.strip()}")
-            except: pass
+                print(f"[PC -> STM32] Wysłano: {cmd.strip()}")
+                
+            except ValueError:
+                messagebox.showerror("Błąd", "Wprowadź poprawne liczby (użyj kropki jako separatora).")
+            except Exception as e:
+                messagebox.showerror("Błąd komunikacji", str(e))
+        else:
+            messagebox.showwarning("Błąd", "Najpierw połącz się z portem COM!")
 
     def calc_crc8(self, s):
         crc = 0
@@ -161,7 +174,6 @@ class PIDMonitorApp:
                 self.live_ki = float(d.get("ki", 0))
                 self.live_kd = float(d.get("kd", 0))
                 
-                # Odbiór stanów Fan i Ready (domyślnie 0)
                 self.fan_status = int(d.get("fan", 0))
                 self.rdy_status = int(d.get("rdy", 0))
 
@@ -190,19 +202,11 @@ class PIDMonitorApp:
             self.lbl_crc.config(text=f"CRC Err: {self.crc_errors}")
             self.lbl_pid_read.config(text=f"Kp: {self.live_kp:.2f} | Ki: {self.live_ki:.3f} | Kd: {self.live_kd:.2f}")
 
-            # --- AKTUALIZACJA KOLORÓW WSKAŹNIKÓW ---
-            
-            # Fan: Niebieski gdy włączony, szary gdy wyłączony
-            if self.fan_status == 1:
-                self.lbl_fan_ind.config(bg="#3399FF", text="FAN: ON")
-            else:
-                self.lbl_fan_ind.config(bg="#DDDDDD", text="FAN: OFF")
+            if self.fan_status == 1: self.lbl_fan_ind.config(bg="#3399FF", text="FAN: ON")
+            else: self.lbl_fan_ind.config(bg="#DDDDDD", text="FAN: OFF")
 
-            # Ready: Zielony gdy gotowe, szary gdy nie
-            if self.rdy_status == 1:
-                self.lbl_rdy_ind.config(bg="#00CC00", text="READY")
-            else:
-                self.lbl_rdy_ind.config(bg="#DDDDDD", text="WAIT...")
+            if self.rdy_status == 1: self.lbl_rdy_ind.config(bg="#00CC00", text="READY")
+            else: self.lbl_rdy_ind.config(bg="#DDDDDD", text="WAIT...")
 
             x = range(len(self.data_measured))
             self.line_sp.set_data(x, self.data_setpoint)
