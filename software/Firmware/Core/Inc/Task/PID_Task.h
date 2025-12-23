@@ -10,6 +10,30 @@
 //Other Includes
 #include "data.hpp"
 #include "main.h"
+#include "data.hpp"       // Global data structures
+#include "tim.h"          // PWM Timer (htim3)
+#include "gpio.h"         // Fan GPIO
+#include "main.h"         // HAL_GetTick, HAL_Delay
 
+#define PWM_PERIOD_ARR      1000.0f  // Wartość AutoReload Timera (ARR)
+#define PID_OUT_MAX         PWM_PERIOD_ARR
+#define PID_OUT_MIN         0.0f
+
+#ifndef TASK_PID_TASK_H_
+#define TASK_PID_TASK_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Function Prototypes
+void PID_Init(void);
+void PID_Update(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* TASK_PID_TASK_H_ */
 
 #endif
