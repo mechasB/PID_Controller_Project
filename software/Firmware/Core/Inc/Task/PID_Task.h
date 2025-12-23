@@ -14,6 +14,7 @@
 #include "tim.h"          // PWM Timer (htim3)
 #include "gpio.h"         // Fan GPIO
 #include "main.h"         // HAL_GetTick, HAL_Delay
+#include <math.h>  
 
 #define PWM_PERIOD_ARR      1000.0f  // Wartość AutoReload Timera (ARR)
 #define PID_OUT_MAX         PWM_PERIOD_ARR

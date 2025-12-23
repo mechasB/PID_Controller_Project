@@ -10,26 +10,31 @@ import time
 import json
 
 class PIDMonitorApp:
+    """
+    GUI Application for monitoring and tuning the STM32 PID Controller.
+    Features: Live Plotting, Serial Communication, Status Indicators.
+    """
     def __init__(self, root):
         self.root = root
-        self.root.title("PID Monitor (Interrupt Based)")
+        self.root.title("PID Monitor")
         self.root.geometry("1100x850")
 
         self.ser = None
         self.is_reading = False
         
-        # Dane wykresów
+        # Plot Data Buffers (Circular)
         self.max_samples = 300
         self.data_measured = deque(maxlen=self.max_samples)
         self.data_setpoint = deque(maxlen=self.max_samples)
         self.data_error = deque(maxlen=self.max_samples)
         
-        # Zmienne statusu
+        # Status Variables
         self.live_pwm = 0.0
         self.live_kp = 0.0; self.live_ki = 0.0; self.live_kd = 0.0
         self.fan_status = 0
         self.rdy_status = 0
         
+        # Statistics
         self.crc_errors = 0
         self.sum_squared_error = 0.0
         self.sample_count = 0
@@ -39,10 +44,11 @@ class PIDMonitorApp:
         self.root.after(100, self.update_gui)
 
     def _setup_ui(self):
+        """Initializes the User Interface layout."""
         control = ttk.LabelFrame(self.root, text="Panel Sterowania", padding=10)
         control.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
 
-        # 1. Połączenie
+        # 1. Connection Panel
         conn = ttk.Frame(control)
         conn.pack(side=tk.LEFT, padx=10)
         self.port_combo = ttk.Combobox(conn, width=15)
@@ -51,7 +57,7 @@ class PIDMonitorApp:
         self.btn_connect = ttk.Button(conn, text="Połącz", command=self.toggle_connection)
         self.btn_connect.pack(side=tk.LEFT, padx=5)
 
-        # 2. Nastawy PID (Wysyłanie)
+        # 2. PID Tuning Panel
         pid_fr = ttk.Frame(control)
         pid_fr.pack(side=tk.LEFT, padx=20)
         self.entries = {}
@@ -61,17 +67,18 @@ class PIDMonitorApp:
             e.pack(side=tk.LEFT, padx=2); e.insert(0, "0.0")
             self.entries[l] = e
         
-        # Przycisk wysyłania - wywołuje funkcję send_pid
+        # Send Button
         ttk.Button(pid_fr, text="Wyślij Nastawy", command=self.send_pid).pack(side=tk.LEFT, padx=10)
         
-        # 3. Reset
+        # 3. Reset Stats
         ttk.Button(control, text="Reset Statystyk", command=self.reset_stats).pack(side=tk.RIGHT, padx=10)
 
-        # 4. Status (LEDy i Liczby)
+        # 4. Status Panel (LEDs & Telemetry)
         status_frame = ttk.LabelFrame(self.root, text="Status Systemu", padding=10)
         status_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=2)
         row1 = ttk.Frame(status_frame); row1.pack(fill=tk.X, pady=5)
 
+        # Visual Indicators
         self.lbl_fan_ind = tk.Label(row1, text=" FAN ", bg="gray", fg="white", font=("Arial", 10, "bold"), width=8)
         self.lbl_fan_ind.pack(side=tk.LEFT, padx=10)
 
@@ -91,6 +98,7 @@ class PIDMonitorApp:
         self.refresh_ports()
 
     def _setup_plots(self):
+        """Initializes Matplotlib figures."""
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
         plt.subplots_adjust(bottom=0.1, hspace=0.3)
         self.line_sp, = self.ax1.plot([], [], 'g--', label='Zadana')
@@ -110,6 +118,7 @@ class PIDMonitorApp:
             self.port_combo.current(best)
 
     def toggle_connection(self):
+        """Opens or closes the Serial Connection."""
         if self.ser and self.ser.is_open:
             self.is_reading = False; self.ser.close(); self.btn_connect.config(text="Połącz")
             self.lbl_fan_ind.config(bg="gray"); self.lbl_rdy_ind.config(bg="gray")
@@ -122,16 +131,16 @@ class PIDMonitorApp:
                 self.reset_stats()
             except Exception as e: messagebox.showerror("Błąd", str(e))
 
-    # --- FUNKCJA WYSYŁANIA DANYCH DO STM32 ---
     def send_pid(self):
+        """Formats and sends PID coefficients to STM32."""
         if self.ser and self.ser.is_open:
             try:
                 kp = float(self.entries['Kp'].get())
                 ki = float(self.entries['Ki'].get())
                 kd = float(self.entries['Kd'].get())
                 
-                # Budujemy komendę: PID:Kp:Ki:Kd + znak nowej linii (\n)
-                # Znak \n jest kluczowy dla przerwania w STM32!
+                # Command format: PID:Kp:Ki:Kd\n
+                # \n is crucial for the STM32 interrupt receiver!
                 cmd = f"PID:{kp:.2f}:{ki:.4f}:{kd:.2f}\n"
                 
                 self.ser.write(cmd.encode('utf-8'))
@@ -145,6 +154,7 @@ class PIDMonitorApp:
             messagebox.showwarning("Błąd", "Najpierw połącz się z portem COM!")
 
     def calc_crc8(self, s):
+        """Calculates CRC-8 checksum for data validation."""
         crc = 0
         for ch in s:
             crc ^= ord(ch)
@@ -155,6 +165,7 @@ class PIDMonitorApp:
         return crc
 
     def read_loop(self):
+        """Background thread for reading Serial data."""
         while self.is_reading and self.ser.is_open:
             try:
                 line = self.ser.readline().decode('utf-8', errors='ignore').strip()
@@ -192,6 +203,7 @@ class PIDMonitorApp:
         self.data_measured.clear(); self.data_setpoint.clear(); self.data_error.clear()
 
     def update_gui(self):
+        """Updates GUI elements (Labels, Colors, Plots) periodically."""
         if self.is_reading:
             if self.sample_count > 0:
                 last_sp = self.data_setpoint[-1]
@@ -202,6 +214,7 @@ class PIDMonitorApp:
             self.lbl_crc.config(text=f"CRC Err: {self.crc_errors}")
             self.lbl_pid_read.config(text=f"Kp: {self.live_kp:.2f} | Ki: {self.live_ki:.3f} | Kd: {self.live_kd:.2f}")
 
+            # Color Update logic
             if self.fan_status == 1: self.lbl_fan_ind.config(bg="#3399FF", text="FAN: ON")
             else: self.lbl_fan_ind.config(bg="#DDDDDD", text="FAN: OFF")
 

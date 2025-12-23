@@ -25,10 +25,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "data.hpp"
-#include "usart.h"  
-#include "tim.h"
-#include <stdio.h>
 //Include Task 
 #include "Task/Interface_Task.h"
 #include "Task/Communication_Task.h"

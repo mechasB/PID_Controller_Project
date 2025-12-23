@@ -5,24 +5,49 @@
 extern "C" {
 #endif
 
+/**
+  ******************************************************************************
+  * @file    Communication_Task.h
+  * @brief   Header file for the Communication Task (UART Telemetry & Commands).
+  *
+  * This file contains function prototypes for initializing the UART communication
+  * in interrupt mode and handling the cyclic data transmission/reception logic.
+  ******************************************************************************
+  */
+
 /* --- Includes --- */
 #include "main.h"
-#include "data.hpp"   // Twoje struktury (lub data.h jeśli też zmieniłeś)
-#include "usart.h"    // Dostęp do huart3
-#include "cmsis_os2.h" // Dostęp do typów RTOS (osMutexId_t)
-#include <stdio.h>    // Do snprintf
+#include "data.hpp"    /* Global system data structures */
+#include "usart.h"     /* UART handle access */
+#include "cmsis_os2.h" /* RTOS types (osMutexId_t) */
+#include <stdio.h>     /* Standard I/O for snprintf */
+#include <string.h>
+#include <stdlib.h> 
 
 /* --- Public Function Prototypes --- */
 
 /**
- * @brief Inicjalizacja komunikacji UART (włączenie przerwań Rx).
- * Wywołać raz przed startem schedulera FreeRTOS.
+ * @brief  Initializes the communication module.
+ *
+ * This function performs the following actions:
+ * - Clears UART error flags (Overrun Error).
+ * - Enables UART Receive Interrupt (RX_IT) to start listening for commands.
+ * * @note   This function must be called once before starting the FreeRTOS scheduler.
+ * @param  None
+ * @retval None
  */
 void Communication_Init(void);
 
 /**
- * @brief Główna funkcja zadania komunikacyjnego.
- * Wywoływać cyklicznie wewnątrz tasku FreeRTOS.
+ * @brief  Main update loop for the Communication Task.
+ *
+ * This function handles the logic for:
+ * 1. Processing received commands (parsing PID values from UART buffer).
+ * 2. Sending telemetry data (JSON format) periodically (e.g., every 500ms).
+ *
+ * @note   This function should be called cyclically inside the FreeRTOS task loop.
+ * @param  None
+ * @retval None
  */
 void Communication_Update(void);
 
