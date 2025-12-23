@@ -25,7 +25,6 @@ void Communication_Init(void)
     __HAL_UART_CLEAR_OREFLAG(&huart2);
 }
 
-/* --- Główna pętla zadania (Update) --- */
 void Communication_Update(void)
 {
     static uint32_t last_tx_tick = 0;
@@ -111,56 +110,5 @@ void Communication_Update(void)
             int ft = snprintf(tx_buffer+len, sizeof(tx_buffer)-len, "|%02X\r\n", crc);
             if(ft>0) HAL_UART_Transmit(&huart2, (uint8_t*)tx_buffer, len+ft, 100);
         }
-    }
-}
-
-/* --- Obsługa Odbioru (Parsowanie PID) --- */
-/* Tę funkcję wołamy, gdy odbierzemy pełną linię (np. w callbacku Rx) */
-void Parse_Received_Command(char* cmd)
-{
-    // Oczekiwany format z Pythona: "PID:Kp:Ki:Kd" np. "PID:2.5:0.1:0.0"
-    float new_kp, new_ki, new_kd;
-
-    if (sscanf(cmd, "PID:%f:%f:%f", &new_kp, &new_ki, &new_kd) == 3)
-    {
-        // Aktualizacja konfiguracji w Mutexie
-        if (osMutexAcquire(DataMHandle, 100) == osOK)
-        {
-            g_system_config.kp = new_kp;
-            g_system_config.ki = new_ki;
-            g_system_config.kd = new_kd;
-            
-            // Opcjonalnie: Reset członu całkującego przy zmianie nastaw
-            // g_system_data.pid_integrator = 0.0f; 
-            
-            osMutexRelease(DataMHandle);
-        }
-    }
-}
-
-/* --- Callback Przerwania UART Rx --- */
-/* Wklej to tutaj lub w main.c (jeśli nie koliduje) */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-    {
-        if (rx_byte == '\n' || rx_byte == '\r') // Koniec linii
-        {
-            rx_buffer[rx_index] = '\0'; // Zakończ string
-            if (rx_index > 0)
-            {
-                Parse_Received_Command((char*)rx_buffer);
-            }
-            rx_index = 0; // Reset bufora
-        }
-        else
-        {
-            if (rx_index < RX_BUFFER_SIZE - 1)
-            {
-                rx_buffer[rx_index++] = rx_byte;
-            }
-        }
-        // Wznowienie nasłuchu
-        HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
     }
 }
